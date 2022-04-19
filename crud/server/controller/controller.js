@@ -1,4 +1,9 @@
 var Userdb = require('../model/model');
+const bodyParser = require('body-parser');
+const redis = require('redis');
+
+const redisPort = 6379;
+
 
 // create and save new user
 exports.create = (req,res)=>{
@@ -31,9 +36,31 @@ exports.create = (req,res)=>{
         });
 
 }
-
+module.exports.find = async function (req, res) {
+    const searchTerm = "ritik";
+    try {
+      const client = redis.createClient();
+      await client.connect();
+  
+      const data = await client.get(searchTerm);
+      if (data) {
+        res.send(JSON.parse(data));
+      } else {
+        const data = await Userdb.find();
+        await client.set(searchTerm, JSON.stringify(data));
+  
+        res.send(data);
+      }
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+    // });
+  };
+     
+    // });
+ 
 // retrieve and return all users/ retrive and return a single user
-exports.find = (req, res)=>{
+exports.findone = (req, res)=>{
 
     if(req.query.id){
         const id = req.query.id;
@@ -43,6 +70,9 @@ exports.find = (req, res)=>{
                 if(!data){
                     res.status(404).send({ message : "Not found user with id "+ id})
                 }else{
+                    
+                    
+                    client.setex('postData',60,JSON.stringify(data));
                     res.send(data)
                 }
             })
@@ -61,6 +91,24 @@ exports.find = (req, res)=>{
     }
 
     
+}
+
+exports.redis_post=async(req,res,next,err)=>{
+    await client.connect()
+    client.get('postData',(err,radis_data)=>{
+        if(err){
+            throw err
+        }
+        else if(redis_data){
+            
+            res.send(JSON.parse(redis_data))
+
+
+        }
+        else{
+            next();
+        }
+    })
 }
 
 // Update a new idetified user by user id
